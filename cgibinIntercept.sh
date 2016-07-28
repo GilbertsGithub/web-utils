@@ -264,15 +264,15 @@ EOF
      else
      	echo "<no log file present>"
      fi
-    cat <<EOF;
+    cat <<EOF
 ------ end log ------</PRE>
 EOF
     if ! $carpStderr && [ -s "$log".stderr ]; then
-	cat <<EOF;
+	cat <<EOF
 <PRE>------ start stderr ------
 EOF
 	spew "$log".stderr
-	cat <<EOF;
+	cat <<EOF
 ------ end stderr ------</PRE>
 lines: $( wc -l "$log".stderr | awk '/[0-9]/ {print $1}' )
 EOF
