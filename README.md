@@ -6,10 +6,10 @@ Beware that some of these may be old and or ugly, but they have the advantage of
 ## cgibinIntercept.sh
 cgi-bin debugging aid.
 
-  Have a misbehaving cgi-bin? Wrote this tool long ago to assure developers always get a useful information returned to them.
+  Have a misbehaving cgi-bin? Wrote this tool long ago to assure developers always get useful information returned to them... no more 500 errors.
 
  * If the cgi-bin fails severely a diagnostic page is returned showing much details.
- * A log file is also created that logs both the input to the web browser and the output from the cgi-bin.
+ * A log file is also created that logs both the input from the web browser and the output from the cgi-bin.
 
 Stay within the limits and the program can be useful. 
 
