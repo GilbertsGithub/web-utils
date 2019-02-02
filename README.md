@@ -17,4 +17,6 @@ Documentation is found within the script itself.
 
 Restriction: not intended for public systems as it lowers security by showing internals of web application.
 
+Also only runs under POSIX compliant shells in Appache CGI-BIN envionments. 
+
 Status: Old but still does its job.
