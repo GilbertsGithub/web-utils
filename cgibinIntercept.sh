@@ -171,7 +171,7 @@
 #     Released under perl's Artistic License.
 # 
 # COPYRIGHT
-#     Copyright 2001-2015 by Gilbert Healton
+#     Copyright 2001-2019 by Gilbert Healton
 #	(older versions go back to about 1994/1995)
 #
 
