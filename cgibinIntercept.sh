@@ -23,11 +23,11 @@
 #     This program is used during development or debugging of 
 #     cgi-bin programs to obtain additional logging of the program
 #     as well as trap errors that often do not return useful
-#      information, such as server 500 errors.
+#     information, such as server 500 errors.
 #
 #     To use, cgibinIntercept is executed rather than the troubled 
-#     problem program. In turn cgibinIntercept executes the original
-#     program. All of the program's output is logged and validated. 
+#     problem cgi-bin program. In turn cgibinIntercept executes the original
+#     program. The program's output is logged and validated. 
 #
 #     If the suspect program works without error then cgibinIntercept 
 #     returns the output to the web browser and writes stderr to Apache's
@@ -157,6 +157,9 @@
 #     WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A 
 #     PARTICULAR PURPOSE.
 # 
+# BUGS:
+#     Should really be rewritten in perl or python to free it of running under POSIX shells.
+#
 # AUTHOR
 # 
 #     # Gilbert Healton    gilbert a healton (dot) net  or  perl dot speaker a gmail (dot)com
@@ -172,7 +175,7 @@
 #	(older versions go back to about 1994/1995)
 #
 
-VERSION='$Id: cgibinIntercept.sh,v 1.25 2015/03/27 01:32:42 working Exp working $';
+VERSION='$Id: cgibinIntercept.sh,v 1.27 2019/02/02 01:32:42 working Exp working $';
 
 
 ######################################################################
@@ -265,7 +268,7 @@ watchSw=false;		#suppose normal cgi-bin executions
 htmlOrTxt ()
 {
     if $watchSw; then
-	sed -e 's/<[^>]*>/g'
+	sed -e 's/<[^>]*>//g'
     else
     	cat
     fi
