@@ -1,130 +1,185 @@
 #!/usr/bin/env bash
-#echo "Content-Type: text/plain";
-#echo "";
-#echo "Testing";
 #
 # NAME 
 # 
-#     cgibinIntercept -- intercept requests to execute cgi-bin programs.
+#     cgibinIntercept -- intercept requests to run cgi-bin 
+#	   programs for improved logging and useful error traps.
 # 
 # SYNOPSIS
 # 
-#     http://www.yourserver.sample/cgi-bin/you-cgi-program
+#     http://www.yourserver.sample/cgi-bin/your-cgi-program
 # 
 #     cgibinIntercept --watch [uname]
 # 		watch log file for changes
 # 		    uname = id of log to find (e.g., nobody).
-# 		    uses $apacheOwner as default user name if not found.
+# 		    Defaults to $apacheOwner (see).
 # 
-#     With the exception of --watch, any run-time arguments to 
-#     cgibinIntercept are passed directly on to the true cgi-bin program.
+#     With the exception of --watch, run-time arguments to 
+#     cgibinIntercept are passed directly on to the true 
+#     cgi-bin program.
 # 
 # DESCRIPTION
 # 
-#     During development or debugging of cgi-bin programs, cgibinIntercept.sh
-#     can be used instead of the suspect program. cgibinIntercept.sh 
-#     runs the suspect program in a way that logs all output to log files 
-#     rather than immediately returning it to the browser.  Much more 
-#     metrics and checks for common problems are made available for 
-#     debugging in the logs.
+#     This program is used during development or debugging of 
+#     cgi-bin programs to obtain additional logging of the program
+#     as well as trap errors that often do not return useful
+#      information, such as server 500 errors.
 #
-#     If the suspect program works without error, cgibinIntercept returns
-#     the original output to the web browser and stderr to Apache's log file
-#     as normal. Users are not aware of any difference in output, with perhaps
-#     only a slightly longer response time.
+#     To use, cgibinIntercept is executed rather than the troubled 
+#     problem program. In turn cgibinIntercept executes the original
+#     program. All of the program's output is logged and validated. 
 #
-#     If the suspect program has major errors, rather than returning an
-#     obscure "500" error error text more useful to problem trackers
-#     is returned. But see SECURITY ISSUES.
+#     If the suspect program works without error then cgibinIntercept 
+#     returns the output to the web browser and writes stderr to Apache's
+#     log file as normal. Typically users are not aware of any difference 
+#     in output, with perhaps only a slightly longer response time. But
+#     see RESTRICTIONS and SECURITY ISSUES, and above all, DISCLAIMERS.
 #
-#     In all cases the log files are kept until future activity overwrites
-#     them.
+#     However, if the suspect program has major errors, rather than 
+#     returning an obscure "500 Server Error", often with nothing 
+#     useful in the logs, cgibinIntercept returns a rich failure notice 
+#     to the browser full of log details and metrics that should be 
+#     teaming with details for analyzing that failure.
+#
+#     In all cases the log files are kept until future activity 
+#     overwrites them.
 #
 # INSTALLATION
 # 
 #     Two styles of installation are possible:
 # 
-#     #	Installing cgibinIntercept under the name of the true cgi-bin 
-# 	program after renaming the true cgi-bin program to keep it available,
-#       but not executed directly by Apache.  
-#	   # the typical use is to rename foo to foo.orig (foo.pl > foo.pl.orig)
-#	   # but the original program may be kept anywhere, including its
-#	     native development tree if that's on the web server; any 
-#	     changes to the working development tree become immediately 
-#	     available without copying it to the official cgi-bin directory.
+#     #	Installing cgibinIntercept under the name of the original 
+#	cgi-bin program after renaming the true cgi-bin program to 
+# 	keep it available, but not for direct execution by Apache. 
+#	   # The typical use is to rename foo to foo.orig 
+#            (foo.pl renames to foo.pl.orig)
+#	   # However, the original program may be kept anywhere, 
+#            including it's native development tree, if that's on the 
+#	     web server; any changes to the working development tree 
+#	     become immediately available without copying to the
+#	     official cgi-bin directory.
 # 
-#     #	Installing cgibinIntercept under a different, but often similar, 
-#	name. The associated debugging and log capture only occurs on 
-# 	explicit request. The name may be hidden from normal users.
+#     #	Installing cgibinIntercept under a different, but often
+#       similar, name, for use only by developers (a hidden install).
+#       The associated debugging and log capture only occur on requests
+#       to this alternate program. The name can be hidden from
+#        normal users.
 # 
-#     A configuration file (foo.cgiconf for foo) is set up to direct
-#     cgibinIntercept.sh to the true cgi-bin program, along with performing
-#     other configurations.
+#     A configuration file (foo.pl.cgiconf for foo.pl) may be set up to 
+#     direct cgibinIntercept.sh to the true cgi-bin program, along with 
+#     performing other configurations. See the following 
+#     CONFIGURATION FILE section.
 #
-#     The LOCAL CONFIGURATION section in the code below has more details
-#     on configuring cgibinIntercept. Recommend you use the .cgiconf
-#     configuration file so you do not need to change this script.
-# 
 # EXAMPLE
 #	cd cgi-bin
-#	cp -p $Downloads/cgibinIntercept .
-#	chmod 755 cgibinIntercept
-#	mv suspect.pl suspect.pl.orig
-#  	ln cgibinIntercept suspect.pl
+#	cp -p $Downloads/cgibinIntercept.sh .
+#	chmod 755 cgibinIntercept.sh
+#	chgrp nobody cgibinIntercept.sh		#$ApacheOwner 
+#	mv suspect.pl suspect.pl.orig;		#rename suspect program
+#  	ln cgibinIntercept.sh suspect.pl;	#trigger cgibinIntercept 
+#
+#     NOTE: yes, having cgibinIntercept.sh work under a ".pl" perl
+#     extension works everywhere I've used it (Linux, FreeBSD, HPUX)
+#     even though it is a bash shell script. In POSIX compatible worlds
+#     it is the "#!" line within that selects which program runs the 
+#     script and NOT the extension.  Extensions may select which 
+#     programs web servers attempt to execute, but the #! controls
+#     the actual execution.
 #
 #   If you STILL don't get any helpful output from the web server 
-#   look in the temporary log files. By default in /tmp/. 
+#   look in the temporary log files. The default directory is /tmp/. 
+#
+#   To find the cgi-bins that have been redirected to cgibinIntercept in 
+#   a source tree:
+# 	# Typical search if you used .orig files:
+#	    cd cgi-directory
+#	    find . -type f -name '*.orig' 
+# 	# GNU/Linux:  search actual files (slower, surer)
+#	    cd cgi-directory
+#	    grep -lR cgibinIntercept . 
+# 	# All POSIX:  search actual files (pipeline, but maybe faster)
+#	    cd cgi-directory
+#	    find . -type f | xargs grep -l cgibinIntercept
+#
+# CONFIGURATION FILE
+#
+#   Users can provide configuration files to alter how
+#   cgibinIntercept works:
+#	# file name: $0.cgiconf  (assuming suspect.pl, 
+#         then use suspect.pl.cgiconf)
+#	# Supported options follow. The defaults are shown.
+#	    logdir="/tmp";	#path to logdir. /tmp universal but insecure.
+#	    exe="$0.orig";	#path to program to execute
+#	    logWho=`/usr/bin/id -un`; #user name to include in log file name.
+#	    apacheOwner="nobody";  #user id apache runs under.
+#	    clashControl=1; 	#maximum log files to keep. see code for more.
+#	    perl=`which perl`;	#perl to use for clashControl locking
+#	    sleep=1;		#sleep time between --watch polling
+#
+#	  More information on these options can be found in the code
+#	  starting at the LOCAL CONFIGURATION comment block
 #
 # RESTRICTIONS
 # 
-#     By default no attempt is made to prevent log files from two different 
-#     requests to clash with each other. In fact, they will clash. This has 
-#     been OK so far as cgibinIntercept is only intended for low-volume 
-#     debugging of programs under development or, rarely, field debugging of
-#     existing programs where hits can be controlled for a short period of time.
+#     Scope: Straight cgi-bin programs running in Apache web servers in 
+#     POSIX environments. Some others as well. Not for mod_perl programs.
 # 
-#     The "clashControl" setting can be set to reduce the chances of log
-#     file clashes (reduce). This is simply defines the number of log files
-#     cgibinIntercept.sh is to rotate through. A lot of complex things could
-#     be done to better handle log clashing, but in the limited debugging 
-#     environments cgibinIntercept is used in, the current clash control has
-#     proven sufficient. More exotic clash control might lead people to 
-#     long-term use of cgibinIntercept on public web browsers, with 
-#     corresponding security issues (see SECURITY ISSUES).
+#     By default no attempt is made to prevent log files from two 
+#     different requests from clashing with each other. In fact, they 
+#     will clash.  This has been OK so far as cgibinIntercept is only 
+#     intended for low-volume debugging of programs under development or,
+#     rarely, field debugging of existing programs where hits can be
+#     limited while cgibinIntercept is in use.
 # 
-# AUTHOR
-# 
-#       Gilbert Healton <ghealton@healton.net>
-# 	or search the web for the exact phrase "Original Mad Programmer" (TM)
-# 
-# LICENSE
-# 
-#     Released under perl's Artistic License.
+#     The "clashControl" setting can be set to reduce, but not stop, the 
+#     chances of log file clashes. This number simply defines the number
+#     of log files cgibinIntercept.sh is to rotate through. A lot of 
+#     complex things could be done to better handle log clashing, but 
+#     in the limited debugging environments I've used cgibinIntercept
+#      in the current clash control has proven sufficient. More exotic
+#     clash control might lead people to long-term use of cgibinIntercept
+#     on public web browsers, with corresponding security issues 
+#     (see SECURITY ISSUES). Also runs slower.
 # 
 # SECURITY ISSUES
 #
-#    The error reports from cgibinIntercept may make internal information 
-#    available to hostile hackers available. All public uses must bear this
-#    in mind.
+#    The error reports from cgibinIntercept may make internal 
+#    information available to hostile hackers. All public uses must bear
+#    this in mind.
 #
-#    The log files are effectively world readable allowing anyone with 
-#    logins on the system to review their contents.
+#    The log files are effectively "world readable", allowing anyone 
+#    with logins on the system to review their contents.
 #
 # DISCLAIMER
 # 
 #     THIS PACKAGE IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR
 #     IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
-#     WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+#     WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A 
+#     PARTICULAR PURPOSE.
 # 
+# AUTHOR
+# 
+#     # Gilbert Healton    gilbert a healton (dot) net  or  perl dot speaker a gmail (dot)com
+#     # search the web for the exact phrase 
+#        "Original Mad Programmer" (TM), or
+#
+# LICENSE
+# 
+#     Released under perl's Artistic License.
+# 
+# COPYRIGHT
+#     Copyright 2001-2015 by Gilbert Healton
+#	(older versions go back to about 1994/1995)
+#
 
-VERSION='$Id: cgibinIntercept.sh,v 1.19 2004/09/19 04:34:37 gilbert Exp gilbert $';
+VERSION='$Id: cgibinIntercept.sh,v 1.25 2015/03/27 01:32:42 working Exp working $';
 
 
 ######################################################################
 #
 #   LOCAL CONFIGURATION
 #	# The following reflect items the local system administrator,
-#	  or developer, installing cgibinIntercept is likely to change.
+#	  or developer, installing cgibinIntercept is might change.
 #	# rather than changing an existing line, simply add a new one,
 #	  with the desired values, BELOW the sample line.
 #
@@ -138,7 +193,7 @@ VERSION='$Id: cgibinIntercept.sh,v 1.19 2004/09/19 04:34:37 gilbert Exp gilbert 
 ### set up path to log file.
 ###	 very insecure if kept in /tmp. likely insecure WHEREVER it is kept.
 logdir="/tmp";		#directory to write log files to due to
-			##the fact it is "owned" by the web browser user
+			##the fact it is "owned" by the web server user
 
 ### path name to the program to be used
 ###   (if you rename your original program foo.pl to foo.pl.orig, the
@@ -264,15 +319,15 @@ EOF
      else
      	echo "<no log file present>"
      fi
-    cat <<EOF
+    cat <<EOF;
 ------ end log ------</PRE>
 EOF
     if ! $carpStderr && [ -s "$log".stderr ]; then
-	cat <<EOF
+	cat <<EOF;
 <PRE>------ start stderr ------
 EOF
 	spew "$log".stderr
-	cat <<EOF
+	cat <<EOF;
 ------ end stderr ------</PRE>
 lines: $( wc -l "$log".stderr | awk '/[0-9]/ {print $1}' )
 EOF
@@ -291,7 +346,7 @@ die ()
 }
 
 # print lines of file starting with given line
-#   $1  Line to start at.
+#   $1  Line number to start at (first line is "1")
 #   $2  file to print
 #  Avoid "tail" as it varies too much between different OSs
 tailx ()
@@ -510,10 +565,10 @@ if head -40 "$log" | grep -i '^Content-Type *:' >/dev/null; then
 	Content_Type="";	#any further carping of ours does not need
 	closeresponse
 	date >>"$log" "+%T: successful completion";	#content type found
-    else
+  else
 	closeresponse
 	carp "EXECUTION APPARENTLY FAILED: no headers observed (500)"
-    fi
+  fi
 #
 #   relay any stderr to true stderr
 #
@@ -531,7 +586,7 @@ EOF
 ---------- end   cgi-bin stderr ----------"
 lines: $( wc -l "$log".stderr | awk '/[0-9]/ {print $1}' )
 EOF
-    fi
+  fi
 
 
 date >>"$log" "+%T: exit-status=$status"
